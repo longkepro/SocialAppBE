@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             PostVotesSeeder::class,
             AdvertisementsSeeder::class,
             ReportsSeeder::class,
+            CrawlerSourceSeeder::class,
             // Các bảng report không có dữ liệu mẫu nên không cần gọi seeder
         ]);
     }

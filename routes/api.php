@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AdminAdvertisementController;
 use App\Http\Controllers\Api\Admin\AdminCategoryController;
+use App\Http\Controllers\Api\Admin\AdminCrawlerSourceController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\Admin\AdminSettingController;
 use App\Http\Controllers\Api\Admin\DashboardController;
@@ -58,6 +59,7 @@ Route::get('/categories/{category}', [CategoryController::class, 'show']);
 
 // Route kích hoạt cào tin tức chủ động qua Secret Token
 Route::match(['GET', 'POST'], '/crawler/trigger', [NewsCrawlerController::class, 'trigger']);
+Route::get('/crawler/sources', [NewsCrawlerController::class, 'sources']);
 
 // Routes xem Hồ sơ (Profile) công khai
 // (Dùng 'user' làm tên tham số cho Model Binding)
@@ -189,6 +191,10 @@ Route::middleware(['auth:sanctum', 'role:admin'])
 
         // Kích hoạt cào tin tức chủ động cho admin
         Route::post('/crawler/trigger', [NewsCrawlerController::class, 'trigger']);
+
+        // Quản lý các nguồn cào tin tức tự động (CRUD)
+        Route::apiResource('crawler-sources', AdminCrawlerSourceController::class);
+        Route::patch('/crawler-sources/{crawler_source}/toggle', [AdminCrawlerSourceController::class, 'toggle']);
 });
 
 Route::middleware(['auth:sanctum', 'role:superadmin'])

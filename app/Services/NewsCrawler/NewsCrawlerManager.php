@@ -3,10 +3,13 @@
 namespace App\Services\NewsCrawler;
 
 use App\Jobs\ProcessCrawledArticleJob;
+use App\Models\CrawlerSource;
 use App\Models\Post;
 use App\Services\NewsCrawler\Contracts\NewsSourceInterface;
+use App\Services\NewsCrawler\Sources\DatabaseRssSource;
 use App\Services\NewsCrawler\Sources\VnExpressSource;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class NewsCrawlerManager
 {
@@ -14,10 +17,12 @@ class NewsCrawlerManager
      * @var NewsSourceInterface[]
      */
     protected array $sources = [];
+    protected DatabaseRssSource $dbSource;
 
     public function __construct()
     {
-        // Đăng ký các nguồn báo mặc định tại đây
+        $this->dbSource = new DatabaseRssSource();
+        // Đăng ký nguồn fallback
         $this->registerSource(new VnExpressSource());
     }
 
@@ -35,6 +40,17 @@ class NewsCrawlerManager
      */
     public function getAvailableSources(): array
     {
+        if (Schema::hasTable('crawler_sources')) {
+            $dbSources = CrawlerSource::where('is_active', true)
+                ->pluck('source_name')
+                ->unique()
+                ->values()
+                ->toArray();
+            if (!empty($dbSources)) {
+                return $dbSources;
+            }
+        }
+
         return array_keys($this->sources);
     }
 
@@ -48,11 +64,42 @@ class NewsCrawlerManager
      */
     public function crawlAndProcess(?string $sourceKey = null, int $limit = 10, bool $sync = false): array
     {
-        $selectedSources = [];
-        if ($sourceKey && isset($this->sources[$sourceKey])) {
-            $selectedSources[] = $this->sources[$sourceKey];
-        } else {
-            $selectedSources = array_values($this->sources);
+        $articles = [];
+
+        // 1. Ưu tiên kiểm tra nguồn động từ bảng crawler_sources trong CSDL
+        $hasDbSources = false;
+        if (Schema::hasTable('crawler_sources')) {
+            $query = CrawlerSource::where('is_active', true);
+            if ($sourceKey) {
+                $query->where('source_name', 'LIKE', "%{$sourceKey}%");
+            }
+            $activeSources = $query->get();
+
+            if ($activeSources->isNotEmpty()) {
+                $hasDbSources = true;
+                foreach ($activeSources as $sourceModel) {
+                    $sourceArticles = $this->dbSource->fetchFromSingleSource($sourceModel, $limit);
+                    $articles = array_merge($articles, $sourceArticles);
+
+                    // Cập nhật timestamp lần cào gần nhất
+                    $sourceModel->update(['last_crawled_at' => now()]);
+                }
+            }
+        }
+
+        // 2. Nếu CSDL chưa có nguồn nào, sử dụng các nguồn tĩnh fallback
+        if (!$hasDbSources) {
+            $selectedSources = [];
+            if ($sourceKey && isset($this->sources[$sourceKey])) {
+                $selectedSources[] = $this->sources[$sourceKey];
+            } else {
+                $selectedSources = array_values($this->sources);
+            }
+
+            foreach ($selectedSources as $source) {
+                $sourceArticles = $source->fetchArticles($limit);
+                $articles = array_merge($articles, $sourceArticles);
+            }
         }
 
         $stats = [

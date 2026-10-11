@@ -52,4 +52,32 @@ class NewsCrawlerController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Tra cứu danh sách các nguồn báo qua Secret Token
+     */
+    public function sources(Request $request): JsonResponse
+    {
+        $providedToken = $request->input('token') ?? $request->header('X-Crawler-Token');
+        $validToken = config('services.crawler.secret');
+
+        $isTokenValid = $providedToken && hash_equals((string) $validToken, (string) $providedToken);
+        $isAdminUser = $request->user() && in_array($request->user()->role, ['admin', 'superadmin']);
+
+        if (!$isTokenValid && !$isAdminUser) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Token bảo mật không chính xác hoặc bạn không có quyền truy cập.',
+            ], 403);
+        }
+
+        $sources = \App\Models\CrawlerSource::with('category:id,name,slug')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $sources,
+        ]);
+    }
 }

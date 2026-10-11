@@ -103,30 +103,25 @@ class NewsCrawlerManager
         }
 
         $stats = [
-            'total_fetched' => 0,
+            'total_fetched' => count($articles),
             'skipped_duplicates' => 0,
             'processed' => 0,
         ];
 
-        foreach ($selectedSources as $source) {
-            $articles = $source->fetchArticles($limit);
-            $stats['total_fetched'] += count($articles);
-
-            foreach ($articles as $articleData) {
-                // Kiểm tra xem bài báo đã tồn tại trong DB chưa
-                if (Post::where('source_url', $articleData->sourceUrl)->exists()) {
-                    $stats['skipped_duplicates']++;
-                    continue;
-                }
-
-                if ($sync) {
-                    (new ProcessCrawledArticleJob($articleData))->handle();
-                } else {
-                    dispatch(new ProcessCrawledArticleJob($articleData));
-                }
-
-                $stats['processed']++;
+        foreach ($articles as $articleData) {
+            // Kiểm tra xem bài báo đã tồn tại trong DB chưa
+            if (Post::where('source_url', $articleData->sourceUrl)->exists()) {
+                $stats['skipped_duplicates']++;
+                continue;
             }
+
+            if ($sync) {
+                (new ProcessCrawledArticleJob($articleData))->handle();
+            } else {
+                dispatch(new ProcessCrawledArticleJob($articleData));
+            }
+
+            $stats['processed']++;
         }
 
         Log::info("NewsCrawler finished: Fetched {$stats['total_fetched']}, Processed {$stats['processed']}, Skipped {$stats['skipped_duplicates']}");

@@ -63,8 +63,22 @@ class ProcessCrawledArticleJob implements ShouldQueue
                 $categoryId = Category::first()?->id;
             }
 
-            // 4. Làm sạch nội dung HTML chống XSS bằng Purifier
-            $safeContent = Purifier::clean($this->data->contentHtml);
+            // 4. Bóc tách toàn văn bài báo từ link gốc (Full Content Scraping)
+            $rawContent = $this->data->contentHtml; // Mặc định nội dung tóm tắt RSS dự phòng
+            try {
+                $fullArticleHtml = (new \App\Services\NewsCrawler\Extractors\ArticleContentExtractor())
+                    ->extract($this->data->sourceUrl, $this->data->sourceName);
+
+                if ($fullArticleHtml) {
+                    $footerHtml = "<p><em>Xem chi tiết bài viết gốc tại <a href=\"{$this->data->sourceUrl}\" target=\"_blank\" rel=\"noopener noreferrer\">{$this->data->sourceName}</a>.</em></p>";
+                    $rawContent = $fullArticleHtml . "\n" . $footerHtml;
+                }
+            } catch (\Throwable $extractorEx) {
+                Log::warning("Could not extract full content for [{$this->data->sourceUrl}], using RSS summary: " . $extractorEx->getMessage());
+            }
+
+            // 5. Làm sạch nội dung HTML chống XSS bằng Purifier
+            $safeContent = Purifier::clean($rawContent);
 
             // 5. Lưu vào bảng posts
             // Chú ý: KHÔNG kích hoạt bắn notification hàng loạt ra ngoài để tránh nghẽn hàng đợi

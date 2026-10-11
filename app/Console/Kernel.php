@@ -20,6 +20,14 @@ class Kernel extends ConsoleKernel
     }
 
     /**
+     * Chỉ định múi giờ cho Scheduler (Giờ Việt Nam UTC+7)
+     */
+    protected function scheduleTimezone()
+    {
+        return 'Asia/Ho_Chi_Minh';
+    }
+
+    /**
      * Register the commands for the application.
      *
      * @return void

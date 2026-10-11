@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\Superadmin\UserRoleController;
+use App\Http\Controllers\Api\NewsCrawlerController;
 use App\Http\Controllers\Api\UserProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -54,6 +55,9 @@ Route::get('/comments/{comment}/replies', [CommentController::class, 'getReplies
 // Lấy danh sách chuyên mục
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{category}', [CategoryController::class, 'show']);
+
+// Route kích hoạt cào tin tức chủ động qua Secret Token
+Route::match(['GET', 'POST'], '/crawler/trigger', [NewsCrawlerController::class, 'trigger']);
 
 // Routes xem Hồ sơ (Profile) công khai
 // (Dùng 'user' làm tên tham số cho Model Binding)
@@ -183,7 +187,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])
         // Cập nhật footer
         Route::post('/settings/footer', [AdminSettingController::class, 'updateFooter']);
 
-
+        // Kích hoạt cào tin tức chủ động cho admin
+        Route::post('/crawler/trigger', [NewsCrawlerController::class, 'trigger']);
 });
 
 Route::middleware(['auth:sanctum', 'role:superadmin'])

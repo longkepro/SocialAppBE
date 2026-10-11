@@ -47,4 +47,8 @@ return [
     'client_secret' => env('GITHUB_CLIENT_SECRET'),
     'redirect' => env('GITHUB_REDIRECT_URI'),
     ],
+
+    'crawler' => [
+        'secret' => env('CRAWLER_SECRET_TOKEN', 'socialapp_news_crawler_secret_2026'),
+    ],
 ];
